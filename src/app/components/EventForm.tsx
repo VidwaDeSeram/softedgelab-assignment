@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { ring2 } from "ldrs";
@@ -25,6 +26,7 @@ export default function EventForm({
   const [description, setDescription] = useState(event?.description || "");
   const [date, setDate] = useState(event?.date || "");
   const [location, setLocation] = useState(event?.location || "");
+
   const [isLoading, setIsLoading] = useState(false); // Manage loading state
 
   useEffect(() => {
@@ -40,7 +42,7 @@ export default function EventForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const newEvent = { name, description, date, location };
+    const newEvent = { id: event?.id, name, description, date, location };
     setIsLoading(true);
     try {
       if (event && event.id) {

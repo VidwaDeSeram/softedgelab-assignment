@@ -3,8 +3,15 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import EventForm from "./components/EventForm";
 import Modal from "./components/Modal";
+import AttendeeForm from "./components/AttendeeForm"; // New component for adding attendee
 import Swal from "sweetalert2";
 import { ring2 } from "ldrs";
+
+interface Attendee {
+  id: number;
+  name: string;
+  eventId: number;
+}
 
 interface Event {
   id: number;
@@ -12,12 +19,14 @@ interface Event {
   description: string;
   date: string;
   location: string;
+  attendees: Attendee[];
 }
 
 export default function Home() {
   const [events, setEvents] = useState<Event[]>([]);
   const [isModalOpen, setModalOpen] = useState(false);
   const [isUpdateModalOpen, setUpdateModalOpen] = useState(false);
+  const [isAttendeeModalOpen, setAttendeeModalOpen] = useState(false); // New state for attendee modal
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isOperationLoading, setIsOperationLoading] = useState(false);
@@ -28,6 +37,7 @@ export default function Home() {
       .get("http://localhost:8080/api/events")
       .then((response) => {
         setEvents(response.data);
+        console.log(response.data);
         setIsLoading(false);
       })
       .catch((error) => {
@@ -64,20 +74,39 @@ export default function Home() {
   };
 
   const handleEventAdded = (newEvent: Event) => {
-    setEvents([...events, newEvent]);
+    setEvents([newEvent, ...events]);
   };
 
   const handleEventUpdated = (updatedEvent: Event) => {
-    setEvents(
-      events.map((event) =>
-        event.id === updatedEvent.id ? updatedEvent : event
-      )
-    );
+    setEvents((prevEvents) => [
+      updatedEvent,
+      ...prevEvents.filter((event) => event.id !== updatedEvent.id),
+    ]);
+  };
+
+  const handleAttendeeAdded = (eventId: number, attendee: Attendee) => {
+    axios
+      .post(`http://localhost:8080/api/events/${eventId}/attendees`, attendee)
+      .then((response) => {
+        setEvents(
+          events.map((event) => (event.id === eventId ? response.data : event))
+        );
+        setAttendeeModalOpen(false);
+        Swal.fire("Success!", "Attendee has been added.", "success");
+      })
+      .catch((error) => {
+        console.error("There was an error adding the attendee!", error);
+      });
   };
 
   const openUpdateModal = (event: Event) => {
     setSelectedEvent(event);
     setUpdateModalOpen(true);
+  };
+
+  const openAttendeeModal = (event: Event) => {
+    setSelectedEvent(event);
+    setAttendeeModalOpen(true);
   };
 
   if (isLoading || isOperationLoading) {
@@ -115,7 +144,25 @@ export default function Home() {
               <p>{event.description}</p>
               <p>{event.date}</p>
               <p>{event.location}</p>
+              <div>
+                <h3 className="font-bold">Attendees:</h3>
+                {event.attendees.length > 0 ? (
+                  <p>
+                    {event.attendees
+                      .map((attendee) => attendee.name)
+                      .join(", ")}
+                  </p>
+                ) : (
+                  <p>No attendees</p>
+                )}
+              </div>
               <div className="flex justify-end space-x-2 mt-4">
+                <button
+                  onClick={() => openAttendeeModal(event)}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                  Add Attendee
+                </button>
                 <button
                   onClick={() => handleDelete(event.id)}
                   className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
@@ -147,6 +194,16 @@ export default function Home() {
           event={selectedEvent}
           onEventAdded={handleEventUpdated}
           onClose={() => setUpdateModalOpen(false)}
+        />
+      </Modal>
+      <Modal
+        isOpen={isAttendeeModalOpen}
+        onClose={() => setAttendeeModalOpen(false)}
+      >
+        <AttendeeForm
+          eventId={selectedEvent?.id}
+          onAttendeeAdded={handleAttendeeAdded}
+          onClose={() => setAttendeeModalOpen(false)}
         />
       </Modal>
     </div>
